@@ -1,0 +1,3 @@
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+Command 'build/examples/routing/ns3.49-manet-routing-compare-optimized.exe --protocol=1 --CSVfileName=../ns3_olsr.csv' returned non-zero exit status 3.

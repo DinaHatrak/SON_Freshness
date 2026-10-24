@@ -1,0 +1,45 @@
+PATCH: decouple OLSR neighbor-hold time from HelloInterval (ns-3.49)
+===================================================================
+Purpose: stock OLSR advertises a neighbor validity time of 3 x HelloInterval.
+This patch adds an attribute NeighbHoldFactor (default 3.0 = stock behaviour),
+so hold time = NeighbHoldFactor x HelloInterval.
+
+Only policies with a factor other than 3 (h3_k2.5, h3_k2, h5_k2.5) need it.
+With the default value 3.0 the stock behaviour is unchanged.
+
+STEP 0 - back up
+  cd ns-3.49/src/olsr/model
+  cp olsr-routing-protocol.cc olsr-routing-protocol.cc.bak
+  cp olsr-routing-protocol.h  olsr-routing-protocol.h.bak
+
+STEP 1 - header: olsr-routing-protocol.h
+  Find the member declaration of the hello interval:
+      Time m_helloInterval;
+  Add directly after it:
+      double m_neighbHoldFactor{3.0};
+
+STEP 2 - source: olsr-routing-protocol.cc, macro
+  Find the line that defines OLSR_NEIGHB_HOLD_TIME (use: grep -n OLSR_NEIGHB_HOLD_TIME olsr-routing-protocol.cc)
+  Replace the whole definition with:
+      #define OLSR_NEIGHB_HOLD_TIME (Seconds(m_neighbHoldFactor * m_helloInterval.GetSeconds()))
+
+STEP 3 - source: olsr-routing-protocol.cc, GetTypeId()
+  Directly after the AddAttribute block for "HelloInterval", add:
+      .AddAttribute("NeighbHoldFactor",
+                    "Neighbor hold time as a multiple of HelloInterval (stock OLSR: 3)",
+                    DoubleValue(3.0),
+                    MakeDoubleAccessor(&RoutingProtocol::m_neighbHoldFactor),
+                    MakeDoubleChecker<double>(1.0))
+
+STEP 4 - rebuild (takes a while; only the olsr module and what depends on it)
+  cd ../../..            (back to ns-3.49)
+  python ./ns3 build
+
+If a step does not match your file (different text, different line), do NOT guess:
+send me the output of
+  grep -n -B2 -A6 "m_helloInterval" src/olsr/model/olsr-routing-protocol.h
+  grep -n -B1 -A3 "OLSR_NEIGHB_HOLD_TIME" src/olsr/model/olsr-routing-protocol.cc
+and the first compiler error.
+
+Caveat to report in the paper: this is a modification of the stock OLSRv1 model.
+Describe it as such and release the patch.

@@ -1,0 +1,58 @@
+SON V2 - PRE-SPECIFIED PROTOCOL (new round, written BEFORE any V2 run)
+Date: 2026-10-18
+Status: independent new experiment, started after the 600-run confirmatory
+result. The earlier 600 runs are NOT reused as evidence for V2 hypotheses.
+
+QUESTION
+In OLSRv1, does the neighbor-hold time (not the HELLO sending rate) determine
+how quickly departed neighbors are detected, and can a shorter hold factor with
+a slower HELLO rate keep PDR close to default OLSR with fewer control bytes?
+
+MECHANISM BEING TESTED (from source reading; not yet verified by trace)
+A receiver expires a neighbor using the validity time carried by that neighbor's
+last HELLO. Changing the sender's rate after the neighbor has left cannot shorten
+that timer. Detection speed is therefore governed by hold time.
+
+POLICIES (all static; hold = factor x hello)
+  olsr_default = h2_k3  : HELLO 2 s, hold 6 s    (stock reference)
+  olsr_slow    = h5_k3  : HELLO 5 s, hold 15 s   (stock reference)
+  h3_k3                 : HELLO 3 s, hold 9 s    (stock; fixed-rate frontier point)
+  h3_k2.5               : HELLO 3 s, hold 7.5 s  (patched)
+  h3_k2                 : HELLO 3 s, hold 6 s    (patched; same hold as default)
+  h5_k2.5               : HELLO 5 s, hold 12.5 s (patched)
+
+DESIGN
+  6 policies x 5 scenarios (stable, fading, churn, outage, stress)
+  x 3 sizes (25, 50, 100) x 10 NEW seeds
+  (2003, 2011, 2017, 2027, 2029, 2039, 2053, 2063, 2069, 2081) = 900 runs.
+  One process per run, fixed AssignStreams, identical traffic and topology schedule.
+  Code: son_study2.cc (frozen before the run; any later change = new round).
+
+HYPOTHESES (to test, not observed facts)
+  H1: stale_sym_entry_s and stale_clear_lag_s depend mainly on hold time, not on
+      HELLO interval, across h2_k3, h3_k2, h5_k2.5, h5_k3.
+  H2: h3_k2 (same 6 s hold as default) has lower olsr_bytes_per_node_min than
+      olsr_default with a PDR difference of at most 2 percentage points in churn
+      and outage. (This may fail: a hold factor of 2 tolerates only one lost HELLO.)
+  H3: any benefit is conditional on scenario; no universal claim.
+
+PRIMARY OUTCOMES (stratified by scenario and node count)
+  pdr_percent and olsr_bytes_per_node_min, difference vs olsr_default,
+  seed-block bootstrap 95% CI over the 10 seeds.
+SECONDARY
+  pdr_before/during/after, stale_sym_entry_s, missing_sym_entry_s (non-fading only),
+  stale_clear_lag_s, missing_clear_lag_s, socket_errors.
+  Lag value -1 means "not applicable or not cleared before the window ended";
+  never average -1.
+
+RULES
+  1. Report all 900 runs, including invalid rows (valid=0), failed runs and null results.
+  2. No parameter change after seeing V2 results. A change creates a new round with new seeds.
+  3. Multiple comparisons are marked exploratory unless corrected.
+  4. A negative or null result is reported as such.
+  5. Known limits: simulation only; OLSRv1 stock model plus one patched attribute;
+     control bytes are OLSR packet bytes, not MAC/PHY airtime or energy;
+     one grid topology; five flows; node 0 is isolated in outage/stress for every policy.
+  6. Novelty: adaptive/tuned HELLO and hold parameters exist in the OLSR literature.
+     Any contribution is the controlled separation of rate vs hold time with
+     stale-state measurements, not HELLO tuning itself.
